@@ -1,0 +1,14 @@
+{
+  "name": "dota2-coach",
+  "owner": {
+    "name": "gilangwinduasmara"
+  },
+  "plugins": [
+    {
+      "name": "dota2-coach",
+      "source": ".",
+      "description": "Analyze a Dota 2 match by match ID and produce a personalized coaching report (laning, farming, deaths, itemization, objectives, teamfights, benchmark percentiles).",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -21,9 +21,17 @@ a review, and it does the rest.
 
 ## Install (Claude Code)
 
-Install this repo as a Claude Code plugin. That registers both the skill
-and its MCP server (`analyze_dota2_match`) automatically — nothing else to
-configure. Then just ask Claude to review a match:
+This repo is its own marketplace (`.claude-plugin/marketplace.json`), so you
+can register and install it directly from GitHub:
+
+```
+/plugin marketplace add gilangwinduasmara/dota2-coach
+/plugin install dota2-coach@dota2-coach
+```
+
+That registers both the skill and its MCP server (`analyze_dota2_match`)
+automatically — nothing else to configure. Then just ask Claude to review a
+match:
 
 > Can you review this game for me? https://www.dotabuff.com/matches/7891234567
 
