@@ -33,10 +33,10 @@ function createServer() {
       description:
         'Fetch a public Dota 2 match from OpenDota and return a coaching-report-ready JSON summary: ' +
         'result, draft, per-player stats and benchmark percentiles vs. their rank bracket, objectives/' +
-        'teamfight timelines, and (with `player`) a deep-dive on one participant (lane efficiency, ' +
-        'deaths log, item timing, gold/xp/net-worth timelines). Use the returned JSON to write the ' +
-        'actual coaching analysis yourself — this tool only extracts and translates data, it does not ' +
-        'generate advice.',
+        'teamfight timelines, rank medal, and (with `player`) a deep-dive on one participant (lane ' +
+        'efficiency, deaths log, skill build, damage sources, rune control, item/ability usage counts, ' +
+        'item timing, gold/xp/net-worth timelines). Use the returned JSON to write the actual coaching ' +
+        'analysis yourself — this tool only extracts and translates data, it does not generate advice.',
       inputSchema: {
         match_id: z
           .union([z.string(), z.number()])

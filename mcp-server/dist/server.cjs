@@ -35028,7 +35028,13 @@ var require_constants = __commonJS({
     async function getLobbyTypes() {
       return loadConstant("lobby_type", "/constants/lobby_type");
     }
-    module2.exports = { getHeroes, getItemIds, getItems, getGameModes, getLobbyTypes };
+    async function getAbilityIds() {
+      return loadConstant("ability_ids", "/constants/ability_ids");
+    }
+    async function getAbilities() {
+      return loadConstant("abilities", "/constants/abilities");
+    }
+    module2.exports = { getHeroes, getItemIds, getItems, getGameModes, getLobbyTypes, getAbilityIds, getAbilities };
   }
 });
 
@@ -35069,7 +35075,51 @@ var require_format3 = __commonJS({
       return [side, lane, building].filter(Boolean).join(" ");
     }
     var LANE_ROLE_NAMES = { 1: "Safe Lane", 2: "Mid Lane", 3: "Off Lane", 4: "Jungle" };
-    module2.exports = { mmss, prettyHeroKey, prettyBuildingKey, LANE_ROLE_NAMES };
+    function titleCaseKey(key) {
+      if (!key) return key;
+      return key.split("_").map((w) => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+    }
+    var RUNE_NAMES = {
+      0: "Double Damage",
+      1: "Haste",
+      2: "Illusion",
+      3: "Invisibility",
+      4: "Regeneration",
+      5: "Bounty",
+      6: "Arcane",
+      7: "Water/Shield",
+      8: "Shield"
+    };
+    function prettyRuneKey(key) {
+      return RUNE_NAMES[key] || `Rune #${key}`;
+    }
+    var MEDAL_NAMES = {
+      1: "Herald",
+      2: "Guardian",
+      3: "Crusader",
+      4: "Archon",
+      5: "Legend",
+      6: "Ancient",
+      7: "Divine",
+      8: "Immortal"
+    };
+    function prettyRankTier(rankTier) {
+      if (!rankTier || typeof rankTier !== "number") return null;
+      const medal = Math.floor(rankTier / 10);
+      const star = rankTier % 10;
+      const name = MEDAL_NAMES[medal];
+      if (!name) return null;
+      return medal === 8 || !star ? name : `${name} ${star}`;
+    }
+    module2.exports = {
+      mmss,
+      prettyHeroKey,
+      prettyBuildingKey,
+      LANE_ROLE_NAMES,
+      titleCaseKey,
+      prettyRuneKey,
+      prettyRankTier
+    };
   }
 });
 
@@ -35080,8 +35130,8 @@ var require_analyze = __commonJS({
     var fs = require("fs");
     var path = require("path");
     var { getJson, requestAndWaitForParse } = require_opendota();
-    var { getHeroes, getItemIds, getItems, getGameModes, getLobbyTypes } = require_constants();
-    var { mmss, prettyHeroKey, prettyBuildingKey, LANE_ROLE_NAMES } = require_format3();
+    var { getHeroes, getItemIds, getItems, getGameModes, getLobbyTypes, getAbilityIds, getAbilities } = require_constants();
+    var { mmss, prettyHeroKey, prettyBuildingKey, LANE_ROLE_NAMES, titleCaseKey, prettyRuneKey, prettyRankTier } = require_format3();
     var { BASE_CACHE_DIR: CACHE_DIR } = require_cache_dir();
     var AnalyzeError2 = class extends Error {
       constructor(message, { candidates } = {}) {
@@ -35153,6 +35203,51 @@ var require_analyze = __commonJS({
         backpack: [p.backpack_0, p.backpack_1, p.backpack_2].map((id) => resolveItemName(itemIds, items, id)).filter(Boolean)
       };
     }
+    function resolveAbilityName(abilityIds, abilities, numericId) {
+      if (!numericId) return null;
+      const internal = abilityIds[String(numericId)];
+      if (!internal) return `Ability #${numericId}`;
+      const meta = abilities[internal];
+      return meta ? meta.dname : titleCaseKey(internal);
+    }
+    function resolveInternalKeyName(internalKey, abilities, items) {
+      if (internalKey === "null" || internalKey === null) return "Basic attacks / other";
+      const ability = abilities[internalKey];
+      if (ability) return ability.dname;
+      const item = items[internalKey];
+      if (item) return item.dname;
+      return titleCaseKey(internalKey);
+    }
+    function resolveCountMap(counts, abilities, items) {
+      if (!counts) return null;
+      const out = {};
+      for (const [key, count] of Object.entries(counts)) {
+        const name = resolveInternalKeyName(key, abilities, items);
+        out[name] = (out[name] || 0) + count;
+      }
+      return out;
+    }
+    function skillBuild(p, abilityIds, abilities) {
+      if (!Array.isArray(p.ability_upgrades_arr)) return null;
+      return p.ability_upgrades_arr.map((id, i) => ({
+        level: i + 1,
+        ability: resolveAbilityName(abilityIds, abilities, id)
+      }));
+    }
+    function damageBreakdown(p, abilities, items) {
+      if (!p.damage_inflictor) return null;
+      const total = Object.values(p.damage_inflictor).reduce((sum, v) => sum + v, 0) || 1;
+      const byName = {};
+      for (const [key, damage] of Object.entries(p.damage_inflictor)) {
+        const name = resolveInternalKeyName(key, abilities, items);
+        byName[name] = (byName[name] || 0) + damage;
+      }
+      return Object.entries(byName).map(([source, damage]) => ({ source, damage, pct_of_hero_damage: Math.round(damage / total * 100) })).sort((a, b) => b.damage - a.damage);
+    }
+    function runeControl(p) {
+      if (!Array.isArray(p.runes_log)) return null;
+      return p.runes_log.map((r) => ({ time: mmss(r.time), rune: prettyRuneKey(r.key) }));
+    }
     function benchmarkPercentiles(p) {
       if (!p.benchmarks) return null;
       const out = {};
@@ -35184,7 +35279,8 @@ var require_analyze = __commonJS({
         tower_damage: p.tower_damage,
         hero_healing: p.hero_healing,
         items: playerItems(p, itemIds, items),
-        benchmark_percentiles_in_bracket: benchmarkPercentiles(p)
+        benchmark_percentiles_in_bracket: benchmarkPercentiles(p),
+        rank_medal: prettyRankTier(p.rank_tier)
       };
       if (typeof p.lane_role !== "undefined") {
         base.lane = LANE_ROLE_NAMES[p.lane_role] || `Lane #${p.lane_role}`;
@@ -35202,11 +35298,12 @@ var require_analyze = __commonJS({
       }
       return out;
     }
-    function deepDivePlayer(p, heroesById, itemIds, items) {
+    function deepDivePlayer(p, heroesById, itemIds, items, abilityIds, abilities) {
       const hero = resolveHeroName(heroesById, p.hero_id);
       return {
         hero,
         personaname: p.personaname || "Anonymous",
+        rank_medal: prettyRankTier(p.rank_tier),
         lane: typeof p.lane_role !== "undefined" ? LANE_ROLE_NAMES[p.lane_role] || `Lane #${p.lane_role}` : null,
         is_roaming: !!p.is_roaming,
         lane_efficiency_pct: p.lane_efficiency_pct ?? null,
@@ -35231,7 +35328,12 @@ var require_analyze = __commonJS({
         buyback_log: (p.buyback_log || []).map((b) => ({ time: mmss(b.time) })),
         item_purchase_timeline: (p.purchase_log || []).filter((e) => e.time >= 0).map((e) => ({ time: mmss(e.time), item: items[e.key] && items[e.key].dname || e.key })),
         multi_kills: p.multi_kills || null,
-        kill_streaks: p.kill_streaks || null
+        kill_streaks: p.kill_streaks || null,
+        skill_build: skillBuild(p, abilityIds, abilities),
+        rune_control: runeControl(p),
+        damage_sources: damageBreakdown(p, abilities, items),
+        item_activation_counts: resolveCountMap(p.item_uses, abilities, items),
+        ability_cast_counts: resolveCountMap(p.ability_uses, abilities, items)
       };
     }
     function findFocalPlayer(players, query) {
@@ -35298,13 +35400,15 @@ var require_analyze = __commonJS({
         throw new AnalyzeError2("matchId must be a numeric Dota 2 match id.");
       }
       matchId = String(matchId);
-      const [match, heroesById, itemIds, items, gameModes, lobbyTypes] = await Promise.all([
+      const [match, heroesById, itemIds, items, gameModes, lobbyTypes, abilityIds, abilities] = await Promise.all([
         loadMatch(matchId, { refresh, noWait, onProgress }),
         getHeroes(),
         getItemIds(),
         getItems(),
         getGameModes(),
-        getLobbyTypes()
+        getLobbyTypes(),
+        getAbilityIds(),
+        getAbilities()
       ]);
       const parsed = isParsed(match);
       const players = match.players.map((p) => {
@@ -35325,6 +35429,8 @@ var require_analyze = __commonJS({
         radiant_score: match.radiant_score,
         dire_score: match.dire_score,
         first_blood_time: typeof match.first_blood_time === "number" ? mmss(match.first_blood_time) : null,
+        comeback_gold: typeof match.comeback === "number" ? match.comeback : null,
+        stomp_gold: typeof match.stomp === "number" ? match.stomp : null,
         draft: (match.picks_bans || []).map((pb) => ({
           team: pb.team === 0 ? "Radiant" : "Dire",
           action: pb.is_pick ? "pick" : "ban",
@@ -35356,7 +35462,7 @@ var require_analyze = __commonJS({
         const focal = candidates[0];
         summary.players.find((p) => p.player_slot === focal.player_slot).is_focal = true;
         if (parsed) {
-          summary.focal_player_deep_dive = deepDivePlayer(focal, heroesById, itemIds, items);
+          summary.focal_player_deep_dive = deepDivePlayer(focal, heroesById, itemIds, items, abilityIds, abilities);
         } else {
           summary.focal_player_deep_dive = { note: "No parsed data available for a deep dive; see basic stats in players[]." };
         }
@@ -35383,7 +35489,7 @@ function createServer() {
     "analyze_dota2_match",
     {
       title: "Analyze Dota 2 match",
-      description: "Fetch a public Dota 2 match from OpenDota and return a coaching-report-ready JSON summary: result, draft, per-player stats and benchmark percentiles vs. their rank bracket, objectives/teamfight timelines, and (with `player`) a deep-dive on one participant (lane efficiency, deaths log, item timing, gold/xp/net-worth timelines). Use the returned JSON to write the actual coaching analysis yourself \u2014 this tool only extracts and translates data, it does not generate advice.",
+      description: "Fetch a public Dota 2 match from OpenDota and return a coaching-report-ready JSON summary: result, draft, per-player stats and benchmark percentiles vs. their rank bracket, objectives/teamfight timelines, rank medal, and (with `player`) a deep-dive on one participant (lane efficiency, deaths log, skill build, damage sources, rune control, item/ability usage counts, item timing, gold/xp/net-worth timelines). Use the returned JSON to write the actual coaching analysis yourself \u2014 this tool only extracts and translates data, it does not generate advice.",
       inputSchema: {
         match_id: z.union([z.string(), z.number()]).describe("Numeric Dota 2 match id, e.g. from a Dotabuff/OpenDota/Stratz URL like .../matches/7891234567"),
         player: z.string().optional().describe(
