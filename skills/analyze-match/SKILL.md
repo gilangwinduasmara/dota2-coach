@@ -1,5 +1,5 @@
 ---
-name: dota2-coach
+name: analyze-match
 description: Analyze a Dota 2 match by match ID and produce a personalized coaching report (laning, farming, deaths, itemization, objectives, teamfights, benchmark percentiles). Use when the user gives a Dota 2 match ID or link and asks for analysis, a review, feedback, or coaching on that match.
 ---
 

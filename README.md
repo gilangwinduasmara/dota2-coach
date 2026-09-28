@@ -14,7 +14,7 @@ This repo is intentionally thin — just the plugin manifest and the skill:
 
 - `.claude-plugin/plugin.json` / `marketplace.json` — the plugin manifest,
   registering both the skill and a remote MCP tool, `analyze_dota2_match`.
-- `skills/dota2-coach/SKILL.md` — the coaching workflow and how to interpret
+- `skills/analyze-match/SKILL.md` — the coaching workflow and how to interpret
   the data the tool returns.
 
 The actual match-fetching logic (OpenDota API calls, caching, JSON
@@ -36,10 +36,22 @@ can register and install it directly from GitHub:
 ```
 
 That registers both the skill and the `analyze_dota2_match` tool
-automatically — nothing else to configure. Then just ask Claude to review a
-match:
+automatically — nothing else to configure.
+
+## Usage
+
+Just ask Claude to review a match:
 
 > Can you review this game for me? https://www.dotabuff.com/matches/7891234567
+
+Claude will typically call the `analyze_dota2_match` tool directly, since
+that alone is often enough to answer. If you want to guarantee the skill's
+full coaching guidance is used (report structure, benchmark interpretation,
+the full-match rating tables), invoke it explicitly, in Claude Code:
+
+```
+/dota2-coach:analyze-match Can you review this game for me? https://www.dotabuff.com/matches/7891234567
+```
 
 ## License
 
