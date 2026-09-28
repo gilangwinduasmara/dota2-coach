@@ -1,0 +1,8 @@
+node_modules/
+cache/
+mcp-server/cache/
+skills/dota2-coach/cache/
+*.log
+.DS_Store
+.claude/settings.local.json
+**/.claude/settings.local.json

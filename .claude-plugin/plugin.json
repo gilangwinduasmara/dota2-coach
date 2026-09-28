@@ -1,0 +1,16 @@
+{
+  "name": "dota2-coach",
+  "version": "1.0.0",
+  "description": "Analyze a Dota 2 match by match ID and produce a personalized coaching report (laning, farming, deaths, itemization, objectives, teamfights, benchmark percentiles). Use when the user gives a Dota 2 match ID or link and asks for analysis, a review, feedback, or coaching on that match.",
+  "author": { "name": "gilangwinduasmara" },
+  "license": "MIT",
+  "mcpServers": {
+    "dota2-analyzer": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/server.cjs"],
+      "env": {
+        "DOTA2_COACH_CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/cache"
+      }
+    }
+  }
+}
