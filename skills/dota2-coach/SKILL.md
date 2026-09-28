@@ -8,12 +8,12 @@ description: Analyze a Dota 2 match by match ID and produce a personalized coach
 Turns a raw Dota 2 match ID into a coaching report by pulling match data from the
 [OpenDota API](https://docs.opendota.com/) and reasoning over it.
 
-This plugin bundles an MCP server (`mcp-server/`) that exposes the exact same
-analysis as a tool, `analyze_dota2_match`. **If that tool is available in this
-conversation, use it instead of the script below**: same data, same JSON shape,
-but it works in any MCP-capable client (Claude Desktop, claude.ai chat via a
-custom connector), not just Claude Code. The script workflow below is the
-fallback for Claude Code sessions where the MCP server isn't configured.
+This plugin registers a remote MCP tool, `analyze_dota2_match`, backed by a
+server deployed at `dota2-coach.promager.com` (source:
+[dota2-coach-mcp-server](https://github.com/gilangwinduasmara/dota2-coach-mcp-server)).
+Installing the plugin wires this up automatically in `.claude-plugin/plugin.json`,
+no local process, no setup, works the same in Claude Code, Claude Desktop, and
+claude.ai chat.
 
 ## Workflow
 
@@ -22,35 +22,25 @@ fallback for Claude Code sessions where the MCP server isn't configured.
    played). Match IDs are the numeric id from the post-game screen, or from a
    Dotabuff/OpenDota/Stratz URL like `.../matches/7891234567`.
 
-2. **Get the analysis**, preferring the MCP tool over the script:
+2. **Call `analyze_dota2_match`** with `match_id` and, when relevant, `player`:
 
-   - **MCP tool available:** call `analyze_dota2_match` with `match_id` and,
-     when relevant, `player` (see below for when to pass it).
-   - **No MCP tool (Claude Code fallback):** run the analysis script from this
-     skill's directory:
-
-     ```
-     node scripts/analyze_match.js <match_id> [--player <name_or_account_id>]
-     ```
-
-   Both paths accept the same inputs and produce the same JSON:
-
-   - Always pass a player filter (`player` / `--player`) when the user is asking
-     about their own performance ("how did I do", "review my game", a specific
-     name) so you get the deep-dive section (lane efficiency, deaths log, item
-     timing, gold/xp/last-hit timelines). Without it you only get the general
-     10-player summary.
+   - Always pass a player filter (`player`) when the user is asking about their
+     own performance ("how did I do", "review my game", a specific name) so you
+     get the deep-dive section (lane efficiency, deaths log, item timing,
+     gold/xp/last-hit timelines). Without it you only get the general 10-player
+     summary.
    - If the player filter is ambiguous or matches nobody, the call errors and
      lists the actual participant names/heroes. Retry with a more specific
      value (account_id is always unambiguous) or ask the user to clarify.
    - First run for a given match can take up to ~1-2 minutes: if OpenDota hasn't
      seen the match yet it fetches it from Steam, and if it has no detailed parse
-     yet it requests one and polls until it's ready. Results are cached (on
-     match id), so re-running (e.g. with a different player filter) is instant.
+     yet it requests one and polls until it's ready. Results are cached
+     server-side (on match id), so re-running (e.g. with a different player
+     filter) is instant.
    - If the match truly can't be found (bad ID, private/bot lobby, or a replay too
      old to still be parseable), the call errors out with an explanation. Surface
      that to the user rather than guessing.
-   - Use `refresh` / `--refresh` to bypass the cache (e.g. user says the match was
+   - Use `refresh: true` to bypass the cache (e.g. user says the match was
      reparsed).
 
 3. **Read the JSON summary** and write the coaching report yourself. It only
@@ -194,11 +184,11 @@ scorecard, not a paragraph per hero.
 ## Notes
 
 - No API key is needed; OpenDota's public API is free and rate-limited per IP.
-- The fetch/cache/summarize logic lives in `../../lib/` (shared by the script
-  and the MCP server); see `../../mcp-server/README.md` for how the MCP
-  server is set up and how to run it outside Claude Code.
-- `lib/constants.js` caches hero/item/game-mode lookups for 14 days; safe to
-  delete the cache dir anytime to force a refresh.
+- The fetch/cache/summarize logic and its own deployment/setup instructions
+  live in the separate [dota2-coach-mcp-server](https://github.com/gilangwinduasmara/dota2-coach-mcp-server)
+  repo, not in this plugin repo. This plugin only knows the server's URL.
+- If `analyze_dota2_match` ever fails to connect (server down, DNS issue),
+  say so plainly rather than guessing at match data from general knowledge.
 - This only covers standard match analysis (any public match ID). It does not
   cover pulling a player's full match history, live/in-progress games, or pro
   league data; those would need different OpenDota endpoints

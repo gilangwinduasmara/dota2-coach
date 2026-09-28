@@ -10,16 +10,22 @@ a review, and it does the rest.
 
 ## How it works
 
-- `skills/dota2-coach/` — a Claude Code skill (`SKILL.md`) describing the
-  coaching workflow and how to interpret the data.
-- `lib/` — the actual fetch/cache/summarize logic, shared by both entry
-  points below.
-- `mcp-server/` — an MCP server exposing the same analysis as a tool,
-  `analyze_dota2_match`, so it also works in clients that don't let a
-  script make its own outbound API calls (e.g. claude.ai chat), not just
-  Claude Code.
+This repo is intentionally thin — just the plugin manifest and the skill:
 
-## Install (Claude Code)
+- `.claude-plugin/plugin.json` / `marketplace.json` — the plugin manifest,
+  registering both the skill and a remote MCP tool, `analyze_dota2_match`.
+- `skills/dota2-coach/SKILL.md` — the coaching workflow and how to interpret
+  the data the tool returns.
+
+The actual match-fetching logic (OpenDota API calls, caching, JSON
+summarization) lives in a separate repo,
+[dota2-coach-mcp-server](https://github.com/gilangwinduasmara/dota2-coach-mcp-server),
+deployed at `https://dota2-coach.promager.com/mcp`. Installing this plugin
+just points Claude at that URL — no local process runs on your machine,
+which is also why it works the same in Claude Code, Claude Desktop, and
+claude.ai chat.
+
+## Install
 
 This repo is its own marketplace (`.claude-plugin/marketplace.json`), so you
 can register and install it directly from GitHub:
@@ -29,18 +35,11 @@ can register and install it directly from GitHub:
 /plugin install dota2-coach@dota2-coach
 ```
 
-That registers both the skill and its MCP server (`analyze_dota2_match`)
+That registers both the skill and the `analyze_dota2_match` tool
 automatically — nothing else to configure. Then just ask Claude to review a
 match:
 
 > Can you review this game for me? https://www.dotabuff.com/matches/7891234567
-
-## Use outside Claude Code (Claude Desktop / claude.ai)
-
-The MCP server also runs standalone for Claude Desktop (local, stdio) or as
-a remote custom connector for claude.ai web chat (HTTP). See
-[`mcp-server/README.md`](mcp-server/README.md) for setup instructions for
-each.
 
 ## License
 

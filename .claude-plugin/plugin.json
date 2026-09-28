@@ -6,11 +6,8 @@
   "license": "MIT",
   "mcpServers": {
     "dota2-analyzer": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/server.cjs"],
-      "env": {
-        "DOTA2_COACH_CACHE_DIR": "${CLAUDE_PLUGIN_DATA}/cache"
-      }
+      "type": "http",
+      "url": "https://dota2-coach.promager.com/mcp"
     }
   }
 }
