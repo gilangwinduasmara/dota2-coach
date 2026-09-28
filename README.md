@@ -42,7 +42,7 @@ automatically — nothing else to configure.
 
 Just ask Claude to review a match:
 
-> Can you review this game for me? https://www.dotabuff.com/matches/7891234567
+> Can you review match 7891234567?
 
 Claude will typically call the `analyze_dota2_match` tool directly, since
 that alone is often enough to answer. If you want to guarantee the skill's
@@ -50,7 +50,7 @@ full coaching guidance is used (report structure, benchmark interpretation,
 the full-match rating tables), invoke it explicitly, in Claude Code:
 
 ```
-/dota2-coach:analyze-match Can you review this game for me? https://www.dotabuff.com/matches/7891234567
+/dota2-coach:analyze-match Can you review match 7891234567?
 ```
 
 ## License
